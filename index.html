@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cumpleaños de la parroquia</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --ivory:#FFF7EC;
@@ -59,6 +60,13 @@
   .status-line{text-align:center;font-size:13px;color:var(--ink-soft);margin-top:8px;min-height:18px;}
   .status-line.error{color:var(--rust);font-weight:600;}
   .status-line.ok{color:#1E7A50;font-weight:600;}
+  .btn.calendar{background:#3E7BE0;}
+  .btn.calendar:hover{background:#2F63BD;}
+  .btn.calendar.connected{background:#1E7A50;}
+  .btn.calendar.connected:hover{background:#166140;}
+  #calendar-status-line{text-align:center;font-size:12px;color:var(--ink-soft);margin:-14px 0 20px;min-height:16px;}
+  #calendar-status-line.ok{color:#1E7A50;font-weight:600;}
+  #calendar-status-line.error{color:var(--rust);font-weight:600;}
 
   .rule-note{background:#FFF9EC;border:1px solid var(--gold-soft);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--ink-soft);margin-bottom:22px;}
   .rule-note b{color:var(--navy-deep);}
@@ -138,8 +146,11 @@
     <button class="btn secondary small" id="export-btn">Descargar copia (.json)</button>
     <button class="btn secondary small" id="import-btn">Cargar copia (.json)</button>
     <input type="file" id="import-file-input" accept=".json" style="display:none;">
+    <button class="btn calendar small" id="connect-calendar-btn" disabled>Conectando con Google...</button>
+    <button class="btn secondary small" id="sync-calendar-btn" style="display:none;">Sincronizar calendario ahora</button>
     <button class="btn danger small" id="clear-data-btn">Borrar datos guardados</button>
   </div>
+  <div id="calendar-status-line"></div>
 
   <div class="edit-panel" id="edit-panel" style="display:none;">
     <h3>Editar personas</h3>
@@ -216,6 +227,9 @@ const gruposPanel = document.getElementById('grupos-panel');
 const gruposTbody = document.getElementById('grupos-tbody');
 const saveGruposBtn = document.getElementById('save-grupos-btn');
 const cancelGruposBtn = document.getElementById('cancel-grupos-btn');
+const connectCalendarBtn = document.getElementById('connect-calendar-btn');
+const syncCalendarBtn = document.getElementById('sync-calendar-btn');
+const calendarStatusLine = document.getElementById('calendar-status-line');
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -278,6 +292,184 @@ function guardarFrasesGrupo(){
 }
 
 let personas = [];
+
+// ==================== Integración con Google Calendar ====================
+const GOOGLE_CLIENT_ID = '101652265414-t0pgb4to3pt0rtpvike7m5uh8uie3vrv.apps.googleusercontent.com';
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+const APP_TAG = 'cumpleanosParroquia';
+
+let googleTokenClient = null;
+let googleAccessToken = null;
+let googleTokenExpiry = 0;
+let sincronizando = false;
+
+function mostrarEstadoCalendar(msg, tipo){
+  calendarStatusLine.textContent = msg;
+  calendarStatusLine.className = tipo ? tipo : '';
+}
+
+function tokenValido(){
+  return !!googleAccessToken && Date.now() < (googleTokenExpiry - 60000);
+}
+
+function actualizarBotonCalendar(){
+  if(tokenValido()){
+    connectCalendarBtn.textContent = 'Google Calendar conectado ✅';
+    connectCalendarBtn.classList.add('connected');
+    syncCalendarBtn.style.display = 'inline-flex';
+  } else {
+    connectCalendarBtn.textContent = 'Conectar Google Calendar';
+    connectCalendarBtn.classList.remove('connected');
+    syncCalendarBtn.style.display = 'none';
+  }
+}
+
+function esperarGoogleIdentity(cb, intentos){
+  intentos = intentos || 0;
+  if(window.google && google.accounts && google.accounts.oauth2){ cb(); return; }
+  if(intentos > 75) return; // ~15s de espera máxima
+  setTimeout(() => esperarGoogleIdentity(cb, intentos+1), 200);
+}
+
+function initGoogleAuth(){
+  esperarGoogleIdentity(() => {
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_SCOPE,
+      callback: (resp) => {
+        if(resp.error){
+          mostrarEstadoCalendar('No se pudo conectar con Google Calendar. Intenta de nuevo.', 'error');
+          return;
+        }
+        googleAccessToken = resp.access_token;
+        googleTokenExpiry = Date.now() + (Number(resp.expires_in || 3600) * 1000);
+        actualizarBotonCalendar();
+        mostrarEstadoCalendar('Conectado. Sincronizando cumpleaños con Google Calendar...', '');
+        syncGoogleCalendar();
+      }
+    });
+    connectCalendarBtn.disabled = false;
+    actualizarBotonCalendar();
+  });
+}
+
+connectCalendarBtn.addEventListener('click', () => {
+  if(!googleTokenClient) return;
+  googleTokenClient.requestAccessToken({ prompt: googleAccessToken ? '' : 'consent' });
+});
+
+syncCalendarBtn.addEventListener('click', () => syncGoogleCalendar(true));
+
+function claveEvento(p){
+  const raw = (p.nombre || '').trim().toUpperCase() + '|' + String(p.contacto || '').trim();
+  let hash = 0;
+  for(let i=0; i<raw.length; i++){ hash = (hash * 31 + raw.charCodeAt(i)) | 0; }
+  return 'pk_' + Math.abs(hash).toString(36);
+}
+
+async function listarEventosApp(){
+  let items = [];
+  let pageToken = '';
+  do{
+    const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+    url.searchParams.set('privateExtendedProperty', 'parroquiaApp=' + APP_TAG);
+    url.searchParams.set('maxResults', '2500');
+    url.searchParams.set('showDeleted', 'false');
+    if(pageToken) url.searchParams.set('pageToken', pageToken);
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + googleAccessToken } });
+    if(!res.ok) throw new Error('Error listando eventos: ' + res.status);
+    const data = await res.json();
+    items = items.concat(data.items || []);
+    pageToken = data.nextPageToken;
+  } while(pageToken);
+  return items;
+}
+
+function construirEventoBody(p, key){
+  const fecha = p.nacimiento;
+  const start = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  const end = new Date(start); end.setDate(end.getDate() + 1);
+  return {
+    summary: `🎂 Cumpleaños: ${p.nombre}`,
+    description: `Grupo: ${p.grupo || '—'}\nContacto: ${p.contacto || '—'}\n\nGenerado automáticamente por la app de Cumpleaños de la Parroquia. No editar manualmente: los cambios se sobrescriben en la próxima sincronización.`,
+    start: { date: toISODate(start) },
+    end: { date: toISODate(end) },
+    recurrence: ['RRULE:FREQ=YEARLY'],
+    extendedProperties: { private: { parroquiaKey: key, parroquiaApp: APP_TAG } },
+    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 * 24 }] }
+  };
+}
+
+async function syncGoogleCalendar(mostrarMensajes){
+  if(sincronizando) return;
+  if(!tokenValido()){
+    if(mostrarMensajes) mostrarEstadoCalendar('Conecta primero con el botón "Conectar Google Calendar".', 'error');
+    return;
+  }
+  if(personas.length === 0) return;
+  sincronizando = true;
+  mostrarEstadoCalendar('Sincronizando con Google Calendar...', '');
+  try{
+    const existentes = await listarEventosApp();
+    const existentesPorClave = {};
+    existentes.forEach(ev => {
+      const key = ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.parroquiaKey;
+      if(key) existentesPorClave[key] = ev;
+    });
+
+    const clavesActuales = new Set();
+    let creados = 0, actualizados = 0, sinCambios = 0;
+
+    for(const p of personas){
+      const key = claveEvento(p);
+      clavesActuales.add(key);
+      const body = construirEventoBody(p, key);
+      const existente = existentesPorClave[key];
+
+      if(existente){
+        const mismaFecha = existente.start && existente.start.date === body.start.date;
+        const mismoResumen = existente.summary === body.summary;
+        if(mismaFecha && mismoResumen){
+          sinCambios++;
+        } else {
+          const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existente.id}`, {
+            method: 'PATCH',
+            headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if(res.ok) actualizados++;
+        }
+      } else {
+        const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + googleAccessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if(res.ok) creados++;
+      }
+    }
+
+    let eliminados = 0;
+    for(const ev of existentes){
+      const key = ev.extendedProperties && ev.extendedProperties.private && ev.extendedProperties.private.parroquiaKey;
+      if(key && !clavesActuales.has(key)){
+        const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${ev.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer ' + googleAccessToken }
+        });
+        if(res.ok) eliminados++;
+      }
+    }
+
+    mostrarEstadoCalendar(`Calendario al día: ${creados} nuevos, ${actualizados} actualizados, ${eliminados} eliminados, ${sinCambios} sin cambios.`, 'ok');
+  }catch(err){
+    console.error(err);
+    mostrarEstadoCalendar('Ocurrió un error sincronizando con Google Calendar. Intenta de nuevo.', 'error');
+  }finally{
+    sincronizando = false;
+  }
+}
+// ================== fin integración Google Calendar ==================
 
 function getToday(){ const t = new Date(); t.setHours(0,0,0,0); return t; }
 function getTomorrow(){ const t = getToday(); t.setDate(t.getDate()+1); return t; }
@@ -416,6 +608,7 @@ function cargarCopiaJSON(file){
       mostrarEstado(`Copia cargada: ${personas.length} personas.`, 'ok');
       mostrarModoConDatos();
       renderResultados();
+      if(tokenValido()) syncGoogleCalendar();
     }catch(err){
       mostrarEstado('El archivo .json no tiene el formato esperado.', 'error');
     }
@@ -656,6 +849,7 @@ async function manejarArchivo(file){
       mostrarEstado(`Archivo cargado: ${personas.length} personas encontradas${guardado ? ' y guardadas' : ''}.`, 'ok');
       mostrarModoConDatos();
       renderResultados();
+      if(tokenValido()) syncGoogleCalendar();
     }catch(err){
       mostrarEstado('No se pudo leer el archivo. Verifica que sea un .xlsx válido.', 'error');
       console.error(err);
@@ -768,6 +962,7 @@ saveEditBtn.addEventListener('click', async () => {
   if(personas.length > 0){
     mostrarModoConDatos();
     renderResultados();
+    if(tokenValido()) syncGoogleCalendar();
   } else {
     seccionHoy.style.display = 'none';
     seccionManana.style.display = 'none';
@@ -825,6 +1020,7 @@ uploadBox.addEventListener('drop', (e) => {
   const tomorrow = getTomorrow();
   fechaHeader.innerHTML = `Mañana es <strong>${formatLargo(tomorrow)}</strong>`;
   cargarFrasesGrupo();
+  initGoogleAuth();
   mostrarEstado('Buscando lista guardada...', '');
   const hayDatos = await cargarDeStorage();
   if(hayDatos){
