@@ -61,6 +61,86 @@
   .status-line.error{color:var(--rust);font-weight:600;}
   .status-line.ok{color:#1E7A50;font-weight:600;}
   .btn.calendar{background:#3E7BE0;}
+  .btn.print{background:var(--rust);}
+  .btn.print:hover{background:#A82418;}
+
+  .calendar-panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin-bottom:22px;}
+  .calendar-panel h3{margin:0 0 14px;text-align:center;}
+  .month-select-row{display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:18px;flex-wrap:wrap;}
+  .month-select-row select{padding:8px 12px;border-radius:8px;border:1px solid var(--line);font-size:14px;font-family:inherit;background:var(--ivory);color:var(--ink);}
+
+  .print-calendar{
+    border-radius:22px;padding:0;margin:0 auto;max-width:880px;overflow:hidden;
+    border:3px solid rgba(0,0,0,.12);
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;
+  }
+  .print-calendar-head{
+    padding:26px 20px 20px;text-align:center;position:relative;
+    background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,0));
+  }
+  .print-calendar-head .cal-logo{width:56px;height:56px;margin:0 auto 8px;display:block;}
+  .print-calendar h2.cal-title{
+    text-align:center;font-size:32px;margin:0;color:var(--ink);text-transform:capitalize;
+    font-weight:800;letter-spacing:.01em;
+  }
+  .print-calendar .cal-year{text-align:center;color:var(--ink-soft);margin-top:4px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
+  .print-calendar-body{padding:6px 20px 24px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  .cal-dow{
+    font-weight:800;text-align:center;padding:8px 0 10px;font-size:11.5px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--ink);
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .cal-dow.weekend{color:var(--rust);}
+  .cal-day{
+    background:rgba(255,255,255,.72);border-radius:12px;min-height:92px;padding:6px 6px 5px;
+    border:1px solid rgba(0,0,0,.08);position:relative;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .cal-day.empty{background:transparent;border:none;}
+  .cal-day.weekend{background:rgba(255,255,255,.4);}
+  .cal-day.has-bday{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.14);}
+  .cal-day .day-num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;font-weight:800;font-size:11.5px;color:var(--ink);
+    margin-bottom:4px;
+  }
+  .cal-day.has-bday .day-num{background:var(--rust);color:#fff;}
+  .cal-day .bday-name{
+    background:rgba(0,0,0,.08);border-radius:7px;padding:2.5px 5px;margin-top:3px;
+    font-size:9.5px;line-height:1.25;color:var(--ink);word-break:break-word;font-weight:600;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .print-calendar-foot{
+    padding:12px 20px 20px;text-align:center;font-size:11px;color:var(--ink-soft);
+    letter-spacing:.03em;
+  }
+
+  .month-colors-0{background:#FDE8D0;} .month-colors-1{background:#FBD9C0;} .month-colors-2{background:#F6C9B9;}
+  .month-colors-3{background:#F3C0BE;} .month-colors-4{background:#F0C7D6;} .month-colors-5{background:#E7CBEB;}
+  .month-colors-6{background:#D6D3F0;} .month-colors-7{background:#C9E0F0;} .month-colors-8{background:#C9EEE3;}
+  .month-colors-9{background:#D8EFC6;} .month-colors-10{background:#EDEBC0;} .month-colors-11{background:#F5DCC0;}
+
+  @media print{
+    @page{ size: letter portrait; margin:10mm; }
+    html, body{ background:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body > *{ visibility:hidden; }
+    #print-calendar-area, #print-calendar-area *{ visibility:visible; }
+    #print-calendar-area{ position:absolute; left:0; top:0; width:100%; margin:0; padding:0; }
+    .no-print{ display:none !important; }
+    .print-calendar{ border-radius:0; max-width:100%; border-width:2px; height:100vh; display:flex; flex-direction:column; box-sizing:border-box; }
+    .print-calendar-head{ padding:8px 14px 6px; }
+    .print-calendar-head .cal-logo{ width:38px; height:38px; margin:0 auto 4px; }
+    .print-calendar h2.cal-title{ font-size:20px; }
+    .print-calendar .cal-year{ font-size:9px; margin-top:2px; }
+    .print-calendar-body{ padding:2px 12px 8px; flex:1; display:flex; flex-direction:column; }
+    .cal-grid{ gap:3px; flex:1; grid-auto-rows:1fr; }
+    .cal-dow{ font-size:8px; padding:3px 0 5px; }
+    .cal-day{ min-height:58px; padding:3px 3px 2px; border-radius:8px; }
+    .cal-day .day-num{ width:15px; height:15px; font-size:9.5px; margin-bottom:2px; }
+    .cal-day .bday-name{ font-size:7px; padding:1.5px 3px; border-radius:5px; margin-top:1.5px; }
+    .print-calendar-foot{ font-size:8.5px; padding:6px 14px 8px; }
+  }
   .btn.calendar:hover{background:#2F63BD;}
   .btn.calendar.connected{background:#1E7A50;}
   .btn.calendar.connected:hover{background:#166140;}
@@ -148,6 +228,7 @@
     <input type="file" id="import-file-input" accept=".json" style="display:none;">
     <button class="btn calendar small" id="connect-calendar-btn" disabled>Conectando con Google...</button>
     <button class="btn secondary small" id="sync-calendar-btn" style="display:none;">Sincronizar calendario ahora</button>
+    <button class="btn print small" id="toggle-print-calendar-btn">🖨️ Imprimir calendario</button>
     <button class="btn danger small" id="clear-data-btn">Borrar datos guardados</button>
   </div>
   <div id="calendar-status-line"></div>
@@ -181,6 +262,17 @@
         <button class="btn small" id="save-grupos-btn">Guardar frases</button>
       </div>
     </div>
+  </div>
+
+  <div class="calendar-panel" id="calendar-panel" style="display:none;">
+    <h3>🖨️ Calendario de cumpleaños por mes</h3>
+    <div class="month-select-row">
+      <select id="print-month-select"></select>
+      <select id="print-year-select"></select>
+      <button class="btn secondary small" id="close-calendar-panel-btn">Cerrar</button>
+      <button class="btn print small" id="do-print-btn">Imprimir este mes</button>
+    </div>
+    <div id="print-calendar-area"></div>
   </div>
 
   <div id="rule-note" class="rule-note" style="display:none;"></div>
@@ -230,6 +322,14 @@ const cancelGruposBtn = document.getElementById('cancel-grupos-btn');
 const connectCalendarBtn = document.getElementById('connect-calendar-btn');
 const syncCalendarBtn = document.getElementById('sync-calendar-btn');
 const calendarStatusLine = document.getElementById('calendar-status-line');
+const togglePrintCalendarBtn = document.getElementById('toggle-print-calendar-btn');
+const calendarPanel = document.getElementById('calendar-panel');
+const closeCalendarPanelBtn = document.getElementById('close-calendar-panel-btn');
+const printMonthSelect = document.getElementById('print-month-select');
+const printYearSelect = document.getElementById('print-year-select');
+const doPrintBtn = document.getElementById('do-print-btn');
+const printCalendarArea = document.getElementById('print-calendar-area');
+const LOGO_DATA_URI = document.querySelector('header .logo') ? document.querySelector('header .logo').src : '';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -920,6 +1020,7 @@ function renderTablaGrupos(){
 toggleGruposBtn.addEventListener('click', () => {
   renderTablaGrupos();
   gruposPanel.style.display = 'block';
+  calendarPanel.style.display = 'none';
 });
 cancelGruposBtn.addEventListener('click', () => { gruposPanel.style.display = 'none'; });
 
@@ -939,6 +1040,7 @@ saveGruposBtn.addEventListener('click', () => {
 toggleEditBtn.addEventListener('click', () => {
   renderTablaEdicion();
   editPanel.style.display = 'block';
+  calendarPanel.style.display = 'none';
 });
 cancelEditBtn.addEventListener('click', () => { editPanel.style.display = 'none'; });
 
@@ -1003,6 +1105,93 @@ clearDataBtn.addEventListener('click', async () => {
   uploadBox.classList.remove('compact');
   mostrarEstado('Datos guardados eliminados.', '');
   fileInput.value = '';
+});
+
+// ---------- Calendario imprimible por mes ----------
+function poblarSelectoresCalendario(){
+  printMonthSelect.innerHTML = MESES.map((m,i) => `<option value="${i}">${m.charAt(0).toUpperCase()+m.slice(1)}</option>`).join('');
+  const hoy = new Date();
+  printMonthSelect.value = hoy.getMonth();
+  const anioActual = hoy.getFullYear();
+  const anios = [];
+  for(let y = anioActual - 1; y <= anioActual + 2; y++) anios.push(y);
+  printYearSelect.innerHTML = anios.map(y => `<option value="${y}">${y}</option>`).join('');
+  printYearSelect.value = anioActual;
+}
+
+function renderCalendarioMes(mes, anio){
+  const primerDiaSemana = new Date(anio, mes, 1).getDay(); // 0=domingo
+  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+
+  // Mapa día -> lista de nombres que cumplen ese día en este mes
+  const cumplesPorDia = {};
+  personas.forEach(p => {
+    if(!p.nacimiento) return;
+    if(p.nacimiento.getMonth() === mes){
+      const d = p.nacimiento.getDate();
+      if(!cumplesPorDia[d]) cumplesPorDia[d] = [];
+      cumplesPorDia[d].push(p.nombre);
+    }
+  });
+
+  const nombresDow = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dowHtml = nombresDow.map((d,i) => `<div class="cal-dow${(i===0||i===6) ? ' weekend' : ''}">${d}</div>`).join('');
+
+  let celdas = '';
+  for(let i = 0; i < primerDiaSemana; i++){
+    celdas += `<div class="cal-day empty"></div>`;
+  }
+  for(let dia = 1; dia <= diasEnMes; dia++){
+    const nombres = cumplesPorDia[dia] || [];
+    const nombresHtml = nombres.map(n => `<div class="bday-name">🎂 ${n}</div>`).join('');
+    const diaSemana = new Date(anio, mes, dia).getDay();
+    const esFinde = (diaSemana === 0 || diaSemana === 6);
+    const clases = ['cal-day'];
+    if(esFinde) clases.push('weekend');
+    if(nombres.length > 0) clases.push('has-bday');
+    celdas += `<div class="${clases.join(' ')}"><div class="day-num">${dia}</div>${nombresHtml}</div>`;
+  }
+
+  const colorClase = `month-colors-${mes}`;
+  printCalendarArea.innerHTML = `
+    <div class="print-calendar ${colorClase}" id="print-calendar-inner">
+      <div class="print-calendar-head">
+        <img class="cal-logo" src="${LOGO_DATA_URI}" alt="Logo de la parroquia">
+        <h2 class="cal-title">${MESES[mes]} ${anio}</h2>
+        <div class="cal-year">Cumpleaños de la comunidad parroquial</div>
+      </div>
+      <div class="print-calendar-body">
+        <div class="cal-grid">${dowHtml}${celdas}</div>
+      </div>
+      <div class="print-calendar-foot">🎂 Sean misericordiosos como su Padre es misericordioso</div>
+    </div>
+  `;
+}
+
+function actualizarVistaCalendario(){
+  const mes = parseInt(printMonthSelect.value, 10);
+  const anio = parseInt(printYearSelect.value, 10);
+  renderCalendarioMes(mes, anio);
+}
+
+togglePrintCalendarBtn.addEventListener('click', () => {
+  poblarSelectoresCalendario();
+  actualizarVistaCalendario();
+  calendarPanel.style.display = 'block';
+  editPanel.style.display = 'none';
+  gruposPanel.style.display = 'none';
+  calendarPanel.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+closeCalendarPanelBtn.addEventListener('click', () => {
+  calendarPanel.style.display = 'none';
+});
+
+printMonthSelect.addEventListener('change', actualizarVistaCalendario);
+printYearSelect.addEventListener('change', actualizarVistaCalendario);
+
+doPrintBtn.addEventListener('click', () => {
+  window.print();
 });
 
 pickBtn.addEventListener('click', () => fileInput.click());
