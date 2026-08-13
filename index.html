@@ -361,8 +361,7 @@ const publicView = document.getElementById('public-view');
 const publicList = document.getElementById('public-list');
 const publicLogo = document.getElementById('public-logo');
 
-const GOOGLE_API_KEY = 'PEGAR_AQUI_TU_API_KEY';
-const CALENDAR_EMAIL = 'dpmcomunicaciones@gmail.com';
+const GOOGLE_API_KEY = 'AIzaSyCbIlejkFaPfu3yzbMHtHaOduzcvM-Y2m4';
 const MODO_PUBLICO = new URLSearchParams(location.search).get('ver') === 'publico';
 const togglePrintCalendarBtn = document.getElementById('toggle-print-calendar-btn');
 const calendarPanel = document.getElementById('calendar-panel');
@@ -1278,7 +1277,13 @@ doPrintBtn.addEventListener('click', () => {
 
 // ---------- Enlace público de solo lectura ----------
 shareLinkBtn.addEventListener('click', async () => {
-  const url = location.origin + location.pathname + '?ver=publico';
+  const calId = localStorage.getItem(DEDICATED_CALENDAR_KEY) || '';
+  const url = location.origin + location.pathname + '?ver=publico' + (calId ? '&cal=' + encodeURIComponent(calId) : '');
+  if(!calId){
+    shareLinkBox.textContent = '⚠️ Primero conecta y sincroniza con Google Calendar al menos una vez para generar el calendario dedicado.';
+    shareLinkBox.style.display = 'block';
+    return;
+  }
   try{
     await navigator.clipboard.writeText(url);
     shareLinkBox.textContent = '✅ Enlace copiado: ' + url;
@@ -1292,6 +1297,13 @@ async function cargarVistaPublica(){
   const logoSrc = document.querySelector('header .logo') ? document.querySelector('header .logo').src : '';
   publicLogo.src = logoSrc;
 
+  const calId = new URLSearchParams(location.search).get('cal');
+
+  if(!calId){
+    publicList.innerHTML = '<div class="public-empty">Este enlace no incluye el calendario a mostrar. Pide un enlace nuevo desde el botón "Compartir enlace".</div>';
+    return;
+  }
+
   if(!GOOGLE_API_KEY || GOOGLE_API_KEY === 'PEGAR_AQUI_TU_API_KEY'){
     publicList.innerHTML = '<div class="public-empty">La vista pública aún no está configurada.</div>';
     return;
@@ -1301,7 +1313,7 @@ async function cargarVistaPublica(){
   const enUnAnio = new Date(ahora.getTime());
   enUnAnio.setFullYear(enUnAnio.getFullYear() + 1);
 
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_EMAIL)}/events`);
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`);
   url.searchParams.set('key', GOOGLE_API_KEY);
   url.searchParams.set('singleEvents', 'true');
   url.searchParams.set('orderBy', 'startTime');
